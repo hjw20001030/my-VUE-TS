@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>canvas page</title>
+</head>
+<style>
+    #myCanvas{
+        width: 1000px;
+        height: 300px;
+    }
+</style>
+<body>
+    <div id="myCanvas"></div>
+</body>
+</html>
+<script>
+    class initCanvas{
+        constructor(option){
+            this.canvas = '';
+            this.ctx = '';
+            this.canvasHit = option.canvasHit;
+            this.canvasWit = option.canvasWit;
+        }
+        init(){
+            this.canvas = document.createElement('canvas');
+            this.canvas.style.width = this.canvasWit +'px';
+            this.canvas.style.height = this.canvasHit +'px';
+            this.ctx = this.canvas.getContext('2d');
+            const ratio = window.devicePixelRatio;
+            if (ratio) {
+                this.canvas.setAttribute(
+                    "width",
+                    this.canvasWit * ratio + ""
+                );
+                this.canvas.setAttribute(
+                    "height",
+                    this.canvasHit * ratio + ""
+                );
+                this.ctx.scale(ratio, ratio);
+            }
+            return this.canvas;
+        }
+        //绘制线段
+        drawLine(x,y, lineWidth, lineColor,dash=[]) {
+            this.ctx.beginPath();
+            this.ctx.lineJoin = "round";
+            if (lineColor !== undefined) {
+                this.ctx.strokeStyle = lineColor;
+            }
+            if (lineWidth !== undefined) {
+                this.ctx.lineWidth = lineWidth;
+            }
+            if (dash !== undefined && dash.length > 0) {
+                this.ctx.setLineDash(dash);
+            }else{
+                this.ctx.setLineDash(dash);
+            }
+            this.ctx.moveTo(x[0], y[0]);
+            this.ctx.lineTo(x[1], y[1]);
+            this.ctx.stroke();
+        }
+        //绘制线段可调整位置
+        drawLines(data ,lineWidth, lineColor){
+            this.ctx.beginPath()
+            this.ctx.lineJoin = "round";
+            if (lineColor !== undefined) {
+                this.ctx.strokeStyle = lineColor;
+            }
+            if (lineWidth !== undefined) {
+                this.ctx.lineWidth = lineWidth;
+            }
+            let isMove = true;
+            if (data.length >= 4) {
+                for (let i = 0; i < data.length; i += 2) {
+                    let x = data[i];
+                    let y = data[i + 1];
+                    if (x == undefined || y === undefined) {
+                        isMove = true;
+                    } else {
+                        if (isMove) {
+                            this.ctx.moveTo(x, y);
+                            isMove = false;
+                        } else {
+                            this.ctx.lineTo(x, y);
+                        }
+                    }
+
+                }
+            }
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
+        }
+        drawText(x, y, text, baseLine) {
+            this.ctx.textBaseline = baseLine?baseLine:"top";
+            this.ctx.fillText(text, x, y);
+        }
+        fillStyle(color) {
+            this.ctx.fillStyle = color;
+        }
+        lineStyle(lineWidth, lineColor) {
+            this.ctx.lineWidth = (lineWidth === undefined ? 1 : lineWidth);
+            this.ctx.strokeStyle = (lineColor === undefined ? "#000" : lineColor);
+        }
+        clearRect(x, y, width, height) {
+            this.ctx.clearRect(x, y, width, height);
+        }
+    }
+    class initDraws{
+        constructor(option){
+            this.el = option.el;
+            this.el.style.position = "relative"
+            this.canvasHit = this.el.offsetHeight;
+            this.canvasWit = this.el.offsetWidth;
+            this.canvas = new initCanvas({
+                canvasHit:this.canvasHit,
+                canvasWit:this.canvasWit
+            });
+            let canvas1 = this.canvas.init();
+            this.styleData = option.styleData;
+            this.canvasDraws = new initCanvas({
+                canvasHit:this.canvasHit,
+                canvasWit:this.canvasWit
+            });
+            let canvas2 = this.canvasDraws.init();
+            canvas2.style.position = 'absolute';
+            canvas2.style.left = 0 + 'px';
+            canvas2.style.top = 0 + 'px';
+            this.setCoordinate();
+            if(this.styleData && this.styleData.backgroundColor){
+                canvas1.style.backgroundColor = this.styleData.backgroundColor;
+            }
+            this.pushDateArr = [];
+            this.el.appendChild(canvas1);
+            this.el.appendChild(canvas2);
+            this.lineDraws();
+        }
+        width1s = 0;
+        xMark = 0;
+        yMark = 0;
+        oneDistance = 0;
+        //设置坐标
+        setCoordinate(){
+            if(this.styleData){
+                this.styleData.top?this.styleData.top:0;
+                this.styleData.right?this.styleData.right:0;
+                this.styleData.bottom?this.styleData.bottom:0;
+                this.styleData.left?this.styleData.left:0;
+                let c = document.createElement('canvas');
+                const ctx = c.getContext('2d');
+                ctx.font = this.styleData.font;
+                let zeroX = this.styleData.left,zeroY = this.canvasHit - this.styleData.bottom;
+                //y轴刻度及刻度线绘制
+                let leadHeight = this.canvasHit - this.styleData.bottom - this.styleData.top;
+                //y坐标的1代表的距离
+                let oneDistance = leadHeight/(this.styleData.max - this.styleData.min);
+                this.oneDistance = oneDistance;
+                let lenTop = Math.floor(this.styleData.max / this.styleData.interval);
+                let scale =  (this.styleData.left / 1) + ctx.measureText(this.styleData.max).width;
+                this.canvas.fillStyle("#fff");
+                for(let k = 1;k<=lenTop;k++){
+                    let ymark = this.styleData.interval*k;
+                    let distance = (ymark+Math.abs(this.styleData.min))*oneDistance;
+                    let y = zeroY - (ctx.measureText(ymark).width / 2) - distance;
+                    this.canvas.drawText(zeroX-ctx.measureText(ymark).width,y,ymark.toString());
+                    //绘制刻度线
+                    this.canvas.lineStyle(1, '#fff');
+                    this.canvas.drawLine([scale,this.canvasWit - this.styleData.right],[zeroY-distance,zeroY-distance],undefined,undefined,[3,3]);
+                }
+                //y 轴 坐标0
+                let distance0 = Math.abs(this.styleData.min)*oneDistance;
+                let yMark = zeroY - (ctx.measureText('0').width / 2) - distance0;
+                this.yMark = yMark;
+                this.canvas.drawText(zeroX-ctx.measureText('0').width,yMark,'0');
+                 //y轴负半轴个数
+                if(Math.abs(this.styleData.min) % this.styleData.interval == 0){
+                    let lenBottom = Math.abs(this.styleData.min/this.styleData.interval);
+                    for(let j = 1;j<=lenBottom;j++){
+                        let ymark = ~(this.styleData.interval*j)+1;
+                        let distance = (ymark+Math.abs(this.styleData.min))*oneDistance;
+                        this.canvas.drawText(zeroX-ctx.measureText(ymark).width,zeroY - (ctx.measureText(Math.abs(ymark)).width / 2)- distance,ymark.toString());
+                         //绘制刻度线
+                        this.canvas.lineStyle(1, '#fff');
+                        this.canvas.drawLine([scale,this.canvasWit - this.styleData.right],[zeroY-distance,zeroY - distance],undefined,undefined,[3,3]);
+                    }
+                }else{
+                    this.canvas.drawText(zeroX-ctx.measureText(this.styleData.min).width,zeroY-(ctx.measureText(this.styleData.max).width / 2),this.styleData.min);
+                    //绘制刻度线
+                    this.canvas.lineStyle(1, '#fff');
+                    this.canvas.drawLine([scale,this.canvasWit - this.styleData.right],[zeroY,zeroY],undefined,undefined,[3,3]);
+                }
+                zeroX = (this.styleData.left / 1) + ctx.measureText(this.styleData.max).width;
+                this.canvas.drawLine([zeroX,zeroX],[this.styleData.top,zeroY],2,'#aaa');
+                this.canvas.drawLine([zeroX,this.canvasWit - this.styleData.right],[zeroY - distance0,zeroY - distance0],2,'#aaa');
+                //x轴绘制
+                //x轴刻度及刻度线绘制
+                let leadWit = this.canvasWit - zeroX - this.styleData.right;
+                let xMark;
+                this.xMark = zeroX;
+                //x轴1秒的宽
+                let width1s = leadWit / this.styleData.time;
+                this.width1s = width1s;
+                for (let index = 1; index <= (this.styleData.time/2); index++) {
+                    const mark = (index*2).toString();
+                    xMark = (zeroX+(index*2) * width1s);
+                    this.canvas.drawLine([xMark,xMark],[yMark+2,yMark+7]);
+                    if(mark == this.styleData.time){
+                        this.canvas.drawText(xMark - ctx.measureText(mark).width/4,yMark+7,'s');
+                    }else{
+                        this.canvas.drawText(xMark - ctx.measureText(mark).width/2,yMark+7,mark);
+                    }
+                }
+            }
+        }
+        drawTime = 1;
+        historyX = 0;
+        historyY=  0;
+        pHistoryY = 0;
+        pHistoryX = 0;
+        drawDatas = [undefined,undefined];
+        lineDraws(){
+            let drawData = this.getDataArr(this.drawTime);
+            let W1s = this.width1s / 50;
+            if(drawData.length == 0){
+                setTimeout(()=>{
+                    this.lineDraws();
+                },500);
+                return;
+            }
+            let index = 1;
+            let timout = setInterval(()=>{
+                const element = drawData[index-1];
+                let x = index*W1s+this.xMark+this.historyX;
+                let y = this.yMark - element*this.oneDistance;
+                if(index == 50){
+                    this.drawTime++;
+                    this.historyX=(x-this.xMark)+W1s;
+                    this.historyY = this.yMark - element*this.oneDistance;
+                    clearInterval(timout);
+                    this.drawDatas = [undefined,undefined];
+                    this.lineDraws();
+                    return;
+                }
+                let xNext = 0,yNext = 0;
+                if(index != 0 && index+1<=drawData.length){
+                    const elementNext = drawData[index+1];
+                    xNext = (index+1)*W1s+this.xMark+this.historyX;
+                    yNext = this.yMark - elementNext*this.oneDistance;
+                }else{
+                    xNext = x;
+                    yNext = y;
+                    if(index == 0 && this.pHistoryX != 0){
+                        x = this.pHistoryX;
+                        y = this.pHistoryY;
+                    }
+                }
+                this.canvasDraws.clearRect(xNext,0,this.width1s*2,this.canvasHit);
+                if(this.drawTime > this.styleData.time){
+                    this.drawTime = 1;
+                    clearInterval(timout);
+                    this.pushDateArr = this.pushDateArr.splice(this.styleData.time*50+1);
+                    this.historyX = 0;
+                    this.pHistoryX = 0;
+                    this.pHistoryY= 0;
+                    this.lineDraws();
+                }else{
+                    this.drawDatas.push(x);
+                    this.drawDatas.push(y);
+                    this.canvasDraws.drawLines([x,y,xNext+W1s,yNext],2,'red');
+                    if(index == 49){
+                        this.pHistoryX = x;
+                        this.pHistoryY= y;
+                        if(this.drawTime > 1){
+                            this.drawDatas.splice(2,0,this.pHistoryX,this.pHistoryY);
+                        }
+                        this.canvasDraws.drawLines(this.drawDatas,2,'red');
+                    }
+                    index++;
+                }
+            },1000 / 50);
+        }
+        pushDate(data){
+            this.pushDateArr.push(...data);
+        }
+        getDataArr(count){
+            if(this.pushDateArr && this.pushDateArr.length>0){
+                return this.pushDateArr.splice(count-1,50)
+            }else{
+                return [];
+            }
+        }
+        
+    }
+    let canvasDom = new initDraws({
+        el:document.getElementById('myCanvas'),
+        styleData:{
+            backgroundColor:'#002',
+            max:60,
+            min:-6,
+            interval:30,
+            left:'38',
+            right:'10',
+            top:'20',
+            bottom:'27',
+            time:60,
+            font:'10px'
+        }
+    });
+    function randoms(max,min){
+       return Math.floor(Math.random()*(max-min+1))+min;
+    }
+    setDate();
+    function setDate(is=true){
+        let d = [];
+        for (let index = 0; index < 50; index++) {
+            // if(index == 20 || index == 0) d.push(randoms(50,29));
+            // else d.push(d[d.length-1]);
+            d.push(30);
+        }
+        if(is) canvasDom.pushDate(d);
+        setTimeout(()=>{
+            // canvasDom.pushDate(d);
+            setDate(true);
+        },1000);
+    }
+</script>
